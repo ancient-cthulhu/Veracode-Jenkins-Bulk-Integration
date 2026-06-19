@@ -44,7 +44,7 @@
 
   <!-- Agents -->
   <rect x="430" y="480" width="300" height="130" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
-  <text x="580" y="506" text-anchor="middle" font-size="15" font-weight="700" fill="#9a3412">Build agents (4 static)</text>
+  <text x="580" y="506" text-anchor="middle" font-size="15" font-weight="700" fill="#9a3412">Build agents</text>
   <text x="450" y="536" font-size="13" fill="#7c2d12">• SCA + IaC: light, no toolchain</text>
   <text x="450" y="562" font-size="13" fill="#7c2d12">• SAST: build toolchains (by label)</text>
   <text x="450" y="592" font-size="12" fill="#9a3412">Never the controller. Cache tools, cap waves.</text>
