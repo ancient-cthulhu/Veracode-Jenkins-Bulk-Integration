@@ -65,9 +65,15 @@ def call(Map config = [:]) {
                         env.VC_IS_TOP_LEVEL = topLevel.toString()
                         env.VC_SHOULD_SCAN  = shouldScan.toString()
 
-                        // App profile is always org/repo, independent of branch.
-                        String jobPath = env.JOB_NAME
-                        String orgRepo = jobPath?.contains('/') ? jobPath.substring(0, jobPath.lastIndexOf('/')) : jobPath
+                        // App profile is org/repo, independent of branch and of any
+                        // parent folder. In a multibranch job under the 'veracode' org
+                        // folder, JOB_NAME is '<parent>/<org>/<repo>/<branch>', so take
+                        // the two segments before the branch (the branch is always last).
+                        def parts = (env.JOB_NAME ?: '').split('/').findAll { it }
+                        String orgRepo
+                        if (parts.size() >= 3)       orgRepo = "${parts[-3]}/${parts[-2]}"
+                        else if (parts.size() == 2)  orgRepo = parts[-2]
+                        else                         orgRepo = (env.JOB_NAME ?: '')
                         env.VC_APP_NAME = ((config.appName ?: env.VERACODE_APP_NAME?.trim()) ?: orgRepo)
                         env.VC_SRC      = ((config.sourceDir ?: env.VERACODE_SOURCE_DIR?.trim()) ?: '.')
 
