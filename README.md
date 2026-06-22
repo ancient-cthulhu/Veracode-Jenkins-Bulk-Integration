@@ -1,49 +1,103 @@
-# Veracode + Jenkins Integration
+# Veracode Security Pipeline for Jenkins
 
-Jenkins bulk rollout for scanning multiple orgs in GitHub with Veracode SCA, IaC/secrets, and SAST that run automatically on every repo, beside each team's build.
+Automated Veracode security scanning across GitHub organizations, delivered as a Jenkins Shared Library. Drop a 2-line `Jenkinsfile` into any repo and it gets SCA, IaC/secrets, and SAST on every push -- beside the team's existing build, never inside it.
 
 <p align="center">
-  <img src="architecture.svg" alt="Veracode + Jenkins Integration Architecture" width="1000">
-  <br>
-  <em>Reference architecture for centralized Jenkins-managed Veracode scanning across GitHub organizations.</em>
+  <img src="architecture.svg" alt="Veracode + Jenkins Architecture" width="1000">
 </p>
 
 ---
 
-**Start here: `SOLUTION.md`**
+## What it does
 
-The full implementation plan covering architecture, requirements, credentials and SCM scopes, rollout order, scan behavior, and risk.
+Every repo that opts in gets three scans running automatically:
 
-## What's included in this repository
+| Scan | When | What it covers |
+|------|------|----------------|
+| **SCA** (Software Composition Analysis) | Every push, every branch | Open source dependencies and license risk |
+| **IaC + Secrets** | Every push, every branch | Infrastructure misconfigurations and hardcoded secrets |
+| **SAST + Policy** | Default branch only (post-merge) | First-party code, compiled and scanned against your Veracode policy |
 
-```text
-SOLUTION.md            the one document to read/present
-architecture.svg       architecture diagram
+Scans run on a dedicated pipeline beside each team's build. No changes to existing CI. No risk to existing deployments. The only thing added to a product repo is a 2-line `Jenkinsfile`.
 
-library-repo/          push as the new Git repo "veracode-pipeline", tag v1
-  vars/veracodePipeline.groovy   the entire pipeline (Linux + Windows, Docker SAST)
-  README.md                      library usage, agent requirements, versioning
+---
 
-consumer-repo-files/   committed into each scanned repo (by the bulk-PR script)
-  Jenkinsfile                    2 lines: calls the library
-  .veracode.yml                  optional per-repo IaC/secrets tuning
+## How it works
 
-platform-automation/   push as the new Git repo "jenkins-platform"; applied to the controller
-  rollout.example.py          one-shot setup script (copy to rollout.py, fill in config, run once)
-  jenkins.casc.yaml           register library + root credentials (alternative to rollout.py)
-  veracode-onboard.groovy     one run: create org folders, mint + bind each org's SCA token, create scan trigger jobs
-  bulk_add_jenkinsfile.py     opens PRs adding the Jenkinsfile across an org (--delete to reverse)
-  README.md                   apply order and configuration
+```
+GitHub org
+  └── repo (any language)
+        └── Jenkinsfile          ← 2 lines, added by PR
+              │
+              ▼
+     Jenkins Organization Folder  ← auto-discovers repos via GitHub API
+              │
+              ▼
+     veracode-pipeline library    ← all logic lives here, versioned by Git tag
+              │
+         ┌────┴────────────────┐
+         ▼                     ▼
+    SCA + IaC/Secrets        SAST (default branch)
+    (every build)            Docker container auto-detects
+                             language, compiles, packages,
+                             uploads to Veracode platform
 ```
 
-## Repository Impact
+The shared library handles everything: Veracode CLI install, SCA agent download, Docker-based autopackaging, Java wrapper upload, GitHub commit status reporting. Repos stay clean.
 
-- **New repositories**
-  - `veracode-pipeline`
-  - `jenkins-platform`
+---
 
-- **Changes to existing product repositories**
-  - Add a minimal `Jenkinsfile`
-  - Optionally add `.veracode.yml`
+## Rollout in 5 steps
 
-Only `library-repo` and `platform-automation` are new repos. Existing product repos change by one file each.
+1. **Run `rollout.py`** -- creates the two platform repos, registers the library in Jenkins, configures credentials, runs onboarding
+2. **Scan Organization** in Jenkins -- discovers all repos in the org
+3. **Merge Jenkinsfile PRs** -- `bulk_add_jenkinsfile.py` opens them, teams merge them
+4. Scanning starts automatically on the next push
+5. Results appear in [platform.veracode.com](https://platform.veracode.com)
+
+The entire rollout touches no existing build pipelines and is reversible: `bulk_add_jenkinsfile.py --delete` opens PRs to remove the `Jenkinsfile` from every repo.
+
+---
+
+## Repository layout
+
+```
+library-repo/               → push as "veracode-pipeline" repo, tag v1
+  vars/veracodePipeline.groovy    full pipeline: SCA, IaC, SAST (Linux + Windows)
+  README.md                       usage, overrides, versioning, agent setup
+
+platform-automation/        → push as "jenkins-platform" repo
+  rollout.py                      one-shot setup script (dummy values, safe to commit)
+  veracode-onboard.groovy         creates org folders, mints SCA tokens
+  bulk_add_jenkinsfile.py         bulk PR rollout across orgs (--delete to reverse)
+  jenkins.casc.yaml               JCasC alternative to rollout.py
+  README.md                       step-by-step manual guide
+
+consumer-repo-files/        → added to each scanned repo by the bulk-PR script
+  Jenkinsfile                     2 lines
+  .veracode.yml                   optional per-repo scan tuning
+```
+
+---
+
+## What changes in your environment
+
+| | Before | After |
+|---|---|---|
+| Product repos | Unchanged | +1 `Jenkinsfile` (2 lines) |
+| Jenkins | Unchanged | +1 shared library, +1 org folder per scanned org |
+| GitHub | Unchanged | +2 platform repos, +1 org webhook per scanned org |
+| Veracode | Unchanged | +1 app profile per repo, +1 SCA workspace per org |
+
+No agents are replaced. No existing pipelines are modified. No credentials are stored outside Jenkins.
+
+---
+
+## Requirements
+
+- Jenkins with the Pipeline, GitHub Branch Source, Credentials Binding, and Docker Workflow plugins
+- A GitHub PAT with `repo` and `read:org` scopes for the scan service account
+- Veracode API credentials (ID + Key)
+- Docker on Jenkins agents for SAST autopackaging (or pre-installed language toolchains)
+
+See `SOLUTION.md` for the full architecture, credential scoping, agent requirements, and phased rollout plan.
