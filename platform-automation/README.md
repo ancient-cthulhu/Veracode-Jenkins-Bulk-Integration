@@ -15,14 +15,13 @@ What the CI/platform team applies to the controller and runs once per org.
 
 ---
 
-## Quickstart -- one-shot setup with rollout.py
+## Quickstart - one-shot setup with rollout.py
 
-`rollout.example.py` is the single entry point. Copy it, fill in the config, run it once:
+`rollout.py` is the single entry point. Fill in the config, run it once:
 
 ```bash
-cp rollout.py rollout.example.py   # rollout.example.py is gitignored -- safe to add real values
-# edit rollout.example.py: fill in PLATFORM_ORG, SCAN_ORGS, credentials, JENKINS_URL
-python3 rollout.example.py
+# edit rollout.py: fill in PLATFORM_ORG, SCAN_ORGS, credentials, JENKINS_URL
+python3 rollout.py
 ```
 
 **What it does in one run:**
@@ -31,11 +30,9 @@ python3 rollout.example.py
 3. Upserts `veracode-api-id`, `veracode-api-key`, and `scm-readonly` credentials in Jenkins
 4. Configures the GitHub Server entry in Jenkins (enables webhook auto-registration)
 5. Registers the `veracode-pipeline` shared library on the controller pointing at your org
-6. Runs `veracode-onboard.groovy` via the Script Console -- creates one Organization Folder per org, mints each org's Veracode SCA workspace token, binds it as `srcclr-api-token`
+6. Runs `veracode-onboard.groovy` via the Script Console - creates one Organization Folder per org, mints each org's Veracode SCA workspace token, binds it as `srcclr-api-token`
 
 Re-running is safe: existing repos are skipped, credentials are upserted, the onboarding script is idempotent.
-
-**rollout.example.py is gitignored.** Never commit it. `rollout.py` has dummy values and is what gets committed for other operators to use as a template.
 
 ---
 
@@ -75,7 +72,7 @@ git push -u origin HEAD:main
 | `veracode-api-key` | Secret text | Your Veracode API Key |
 | `scm-readonly` | Username with password | Username: GitHub service account. Password: PAT with `repo` + `read:org` scopes |
 
-`srcclr-api-token` is NOT added here -- it is minted per org by `veracode-onboard.groovy` in Step 4.
+`srcclr-api-token` is NOT added here - it is minted per org by `veracode-onboard.groovy` in Step 4.
 
 ### Step 3 - Register the shared library
 
@@ -115,8 +112,8 @@ This script:
 2. Finds or creates that org's Veracode SCA workspace
 3. Mints a fresh Jenkins SCA agent token from Veracode
 4. Binds it as the `srcclr-api-token` folder credential
-5. Applies a discovery trigger policy: `Scan Organization` auto-builds only `main`/`master` on first discovery -- PR branches and feature branches are registered as jobs but never auto-queued
-Re-running is safe -- folders and credentials converge, the SCA token is rotated on each run.
+5. Applies a discovery trigger policy: `Scan Organization` auto-builds only `main`/`master` on first discovery - PR branches and feature branches are registered as jobs but never auto-queued
+Re-running is safe - folders and credentials converge, the SCA token is rotated on each run.
 
 **Adding a new org later:** add a line to `ORGS` and re-run. Nothing else.
 
@@ -155,7 +152,7 @@ python3 bulk_add_jenkinsfile.py --orgs <YOUR-ORG> --lib-version v1 --delete --ye
 
 ## Agent requirements for SAST
 
-SAST compiles the repo's source code via Docker automatically -- detects the language and pulls the right image. Same approach as the Veracode GitHub Actions workflow on `ubuntu-latest`.
+SAST compiles the repo's source code via Docker automatically - detects the language and pulls the right image. Same approach as the Veracode GitHub Actions workflow on `ubuntu-latest`.
 
 **Requirements:**
 - Docker installed on the Jenkins agent
@@ -176,7 +173,7 @@ If Docker is not available, install the language toolchain directly on the agent
 
 | File | Purpose |
 |------|---------|
-| `rollout.py` | Safe template with dummy values -- commit this. Clients copy to `rollout.example.py`, fill in real values, run it |
+| `rollout.py` | Safe template with dummy values - commit this. Clients copy to `rollout.example.py`, fill in real values, run it |
 | `jenkins.casc.yaml` | JCasC: registers the shared library and root credentials (alternative to rollout.py steps 2-3) |
 | `veracode-onboard.groovy` | System Groovy script: creates org folders, mints + binds SCA tokens |
 | `bulk_add_jenkinsfile.py` | Opens PRs adding the 2-line Jenkinsfile to every repo in an org. `--delete` to reverse |
