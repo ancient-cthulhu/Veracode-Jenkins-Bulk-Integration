@@ -39,7 +39,11 @@ $ErrorActionPreference = "Stop"
 # ==============================================================================
 $JENKINS_URL    = "http://your-jenkins-host:8080"
 $JENKINS_USER   = "admin"
-$JENKINS_FOLDER = ""   # must match JENKINS_FOLDER used in rollout.ps1, if any
+# Must match PARENT_FOLDER in veracode-onboard.groovy, which defaults to
+# 'veracode' -- org folders live there unless you changed PARENT_FOLDER
+# directly or set JENKINS_FOLDER in rollout.ps1 (which overrides it) during
+# rollout. If you did either, set the same value here.
+$JENKINS_FOLDER = "veracode"
 # $env:JENKINS_TOKEN read from env var; falls back to JENKINS_USER.
 # ==============================================================================
 

@@ -32,7 +32,13 @@ SCAN_ORGS=(
 )
 
 # --- Jenkins folder (optional) ---
-# Leave empty for top-level creation. Example: "veracode" or "veracode/github"
+# Only affects where CREDENTIALS are stored. Leave empty to store
+# veracode-api-id/-key and scm-readonly at the global (root) level.
+# Org folders always live under a 'veracode' parent folder regardless
+# (PARENT_FOLDER in veracode-onboard.groovy) -- leaving this empty does NOT
+# put org folders at the Jenkins top level. Setting this overrides
+# PARENT_FOLDER too, moving org folders and credentials together.
+# If you set this, use the same value in trigger-scan.sh's JENKINS_FOLDER.
 JENKINS_FOLDER=""
 
 # --- Library version ---
