@@ -106,6 +106,21 @@ VERACODE_API_KEY = _require_env("VC_API_KEY", "VERACODE_API_KEY_SECRET",
                                  label="Veracode API Key (VC_API_KEY)")
 JENKINS_TOKEN  = os.environ.get("JENKINS_TOKEN", JENKINS_USER).strip()
 
+# --- Refuse to run against the unedited placeholder org(s) ---
+_PLACEHOLDER = "your-github-org"
+
+def _require_configured(value, label):
+    if not value or value == _PLACEHOLDER:
+        print(f"ERROR: {label} is still set to the placeholder \"{_PLACEHOLDER}\". "
+              f"Edit the CONFIG section at the top of this script before running.")
+        sys.exit(1)
+
+_require_configured(PLATFORM_ORG, "PLATFORM_ORG")
+if not SCAN_ORGS or any(o == _PLACEHOLDER for o in SCAN_ORGS):
+    print(f"ERROR: SCAN_ORGS is still set to the placeholder \"{_PLACEHOLDER}\". "
+          f"Edit the CONFIG section at the top of this script before running.")
+    sys.exit(1)
+
 # Derived paths
 BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 LIBRARY_DIR  = os.path.join(BASE, "library-repo")
