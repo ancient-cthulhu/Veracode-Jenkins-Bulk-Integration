@@ -98,6 +98,7 @@ export VERACODE_API_ID=<your-api-id>
 export VERACODE_API_KEY=<your-api-key>
 export SCM_SCAN_USER=<github-username>
 export SCM_SCAN_TOKEN=<github-pat>
+export PLATFORM_ORG=<your-github-org>
 ```
 
 ### Step 4 - Run veracode-onboard.groovy

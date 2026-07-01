@@ -76,6 +76,14 @@ function Require-Env {
     exit 1
 }
 
+function Require-Configured {
+    param([string]$Label, [string]$Value)
+    if ([string]::IsNullOrWhiteSpace($Value) -or $Value -eq "your-github-org") {
+        Write-Error "ERROR: $Label is still set to the placeholder `"your-github-org`". Edit the CONFIG section at the top of this script before running."
+        exit 1
+    }
+}
+
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Error "ERROR: git is required but not installed."
     exit 1
@@ -84,6 +92,12 @@ if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
 $GITHUB_TOKEN     = Require-Env "GitHub PAT (GITHUB_TOKEN)" @("GITHUB_TOKEN", "GH_PAT", "GH_TOKEN")
 $VERACODE_API_ID  = Require-Env "Veracode API ID (VC_API_ID)" @("VC_API_ID", "VERACODE_API_KEY_ID")
 $VERACODE_API_KEY = Require-Env "Veracode API Key (VC_API_KEY)" @("VC_API_KEY", "VERACODE_API_KEY_SECRET")
+
+Require-Configured "PLATFORM_ORG" $PLATFORM_ORG
+if (($SCAN_ORGS | Where-Object { $_ -eq "your-github-org" }).Count -gt 0) {
+    Write-Error "ERROR: SCAN_ORGS is still set to the placeholder `"your-github-org`". Edit the CONFIG section at the top of this script before running."
+    exit 1
+}
 $JENKINS_TOKEN    = if ($env:JENKINS_TOKEN) { $env:JENKINS_TOKEN } else { $JENKINS_USER }
 
 $SCRIPT_DIR  = Split-Path -Parent $MyInvocation.MyCommand.Path

@@ -76,6 +76,14 @@ require_env() {
   exit 1
 }
 
+require_configured() {
+  local label="$1" value="$2"
+  if [ -z "$value" ] || [ "$value" = "your-github-org" ]; then
+    echo "ERROR: ${label} is still set to the placeholder \"your-github-org\". Edit the CONFIG section at the top of this script before running." >&2
+    exit 1
+  fi
+}
+
 for bin in curl jq git; do
   command -v "$bin" >/dev/null 2>&1 || { echo "ERROR: '$bin' is required but not installed." >&2; exit 1; }
 done
@@ -84,6 +92,14 @@ GITHUB_TOKEN=$(require_env "GitHub PAT (GITHUB_TOKEN)" GITHUB_TOKEN GH_PAT GH_TO
 VERACODE_API_ID=$(require_env "Veracode API ID (VC_API_ID)" VC_API_ID VERACODE_API_KEY_ID)
 VERACODE_API_KEY=$(require_env "Veracode API Key (VC_API_KEY)" VC_API_KEY VERACODE_API_KEY_SECRET)
 JENKINS_TOKEN="${JENKINS_TOKEN:-$JENKINS_USER}"
+
+require_configured "PLATFORM_ORG" "$PLATFORM_ORG"
+for o in "${SCAN_ORGS[@]}"; do
+  if [ "$o" = "your-github-org" ]; then
+    echo "ERROR: SCAN_ORGS is still set to the placeholder \"your-github-org\". Edit the CONFIG section at the top of this script before running." >&2
+    exit 1
+  fi
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
