@@ -54,7 +54,7 @@ import java.security.SecureRandom
 
 // ---- config -----------------------------------------------------------------
 @Field List<String> ORGS = [
-    'Veracode-CSE-Demos',
+    'your-github-org',
     // add more orgs here and re-run
 ]
 

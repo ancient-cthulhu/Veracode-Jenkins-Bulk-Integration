@@ -16,6 +16,10 @@
 # do NOT hardcode secret values in this file. The Veracode API id/key below are
 # what veracode-onboard.groovy uses to mint the per-org SCA tokens; the per-org
 # 'srcclr-api-token' folder credentials are written by that script, not here.
+#
+# VERACODE_LIBRARY_REPO_URL must also be set before applying this file, e.g.
+# https://github.com/<YOUR-ORG>/veracode-pipeline.git - there is no default,
+# this file will fail to apply until it is set.
 # =============================================================================
 
 unclassified:
@@ -30,7 +34,7 @@ unclassified:
           modernSCM:
             scm:
               git:
-                remote: "https://github.com/Veracode-CSE-Demos/veracode-pipeline.git"
+                remote: "${VERACODE_LIBRARY_REPO_URL}"
                 credentialsId: "scm-readonly"
 
 credentials:
