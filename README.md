@@ -64,7 +64,7 @@ The shared library handles everything: Veracode CLI install, SCA agent download,
 2. **Scan Organization** in Jenkins - discovers all repos in the org
 3. **Merge Jenkinsfile PRs** - `bulk_add_jenkinsfile.py` opens them, teams merge them
 4. **Trigger a scan** - Jenkins UI ("Scan Organization Now" / "Scan Repository Now" / "Build Now") or `trigger-scan.sh` / `trigger-scan.ps1`; nothing scans automatically
-5. Results appear in [platform.veracode.com](https://platform.veracode.com) after each ad hoc scan
+5. Results appear in the Veracode platform after each ad hoc scan
 
 The entire rollout touches no existing build pipelines and is reversible: `bulk_add_jenkinsfile.py --delete` opens PRs to remove the `Jenkinsfile` from every repo.
 
