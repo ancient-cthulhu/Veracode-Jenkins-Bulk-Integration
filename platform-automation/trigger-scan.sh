@@ -2,9 +2,11 @@
 #
 # trigger-scan.sh -- On-demand Veracode/Jenkins scan trigger.
 #
-# No webhook and no periodic poll are configured (see SOLUTION.md). Scans
-# only run when explicitly triggered. Use this script to trigger one from a
-# terminal instead of the Jenkins UI.
+# No webhook is configured (see SOLUTION.md). Each org folder also polls
+# GitHub hourly on its own (PeriodicFolderTrigger, egress only) so new repos
+# are discovered without this script. Use this script when you don't want to
+# wait for the next hourly pass, or to trigger from a terminal instead of
+# the Jenkins UI.
 # Must be run from somewhere that can reach JENKINS_URL (same constraint as
 # rollout.sh: the Jenkins controller, or a bastion on the same network).
 #

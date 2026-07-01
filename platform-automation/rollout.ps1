@@ -413,18 +413,21 @@ function Step-JenkinsCredentials {
 }
 
 # ==============================================================================
-# STEP 3: Configure GitHub Server (no webhook, no polling -- ad hoc only)
+# STEP 3: Configure GitHub Server (API rate-limit registration only)
 # ==============================================================================
 
 function Step-GitHubServer {
     Write-Host ""
     Write-Host "=== Step 3: Configure GitHub Server (no webhook registration) ==="
-    # manageHooks=false intentionally -- this deployment is egress-only and
-    # has no automatic trigger at all: no webhook, no periodic poll. Every
-    # scan is ad hoc (Jenkins UI or trigger-scan.sh/.ps1). This step still
-    # registers the GitHub Server entry because it's how the plugin tracks
-    # API rate-limit usage against scm-readonly; it does not open any
-    # inbound path.
+    # manageHooks=false intentionally -- Jenkins must never receive inbound
+    # calls from GitHub. Discovery still happens automatically: each org
+    # folder gets a 1-hour PeriodicFolderTrigger (set by veracode-onboard.groovy,
+    # not here) that polls GitHub on its own schedule (egress only). Scans
+    # beyond a newly discovered repo's first default-branch build stay ad
+    # hoc (Jenkins UI or trigger-scan.sh/.ps1). This step still registers
+    # the GitHub Server entry because it's how the plugin tracks API
+    # rate-limit usage against scm-readonly; it does not open any inbound
+    # path.
 
     $groovy = @"
 import jenkins.model.Jenkins

@@ -9,11 +9,14 @@
 //   5. Apply NoTriggerOrganizationFolderProperty so discovery only auto-builds
 //      main/master -- PR branches and feature branches are registered but never
 //      auto-queued, preventing executor starvation and stale pending checks.
-//   6. Strip any PeriodicFolderTrigger. Discovery is ad hoc only: it happens
-//      when someone clicks "Scan Organization Now" / "Scan Repository Now" in
-//      the Jenkins UI, or runs trigger-scan.sh/.ps1. Jenkins never re-indexes
-//      an org folder on its own schedule. The only automatic index is the
-//      one-time pass Jenkins performs when an org folder is first created.
+//   6. Set a 1-hour PeriodicFolderTrigger. Jenkins re-indexes each org folder
+//      every hour (egress poll to the GitHub API -- no inbound webhook, no
+//      change to manageHooks=false) so new repos are discovered automatically.
+//      Because of NoTriggerOrganizationFolderProperty above, a newly
+//      discovered repo's main/master gets an automatic first build; all other
+//      branches are registered but never auto-queued. Manual "Scan
+//      Organization Now" / "Scan Repository Now" / trigger-scan.sh/.ps1 still
+//      work for on-demand re-index in between the hourly passes.
 //
 // Run as a SYSTEM (trusted) script: Manage Jenkins > Script Console for a
 // one-off, or a freestyle admin job to repeat/schedule. NOT Job DSL, NOT
@@ -222,18 +225,20 @@ void ensureNoTriggerProperty(OrganizationFolder of) {
     of.save()
 }
 
-// Always applied whether the folder is new or already exists. This deployment
-// is ad hoc only: discovery and scanning both happen via the Jenkins UI
-// buttons or trigger-scan.sh/.ps1, never on a schedule. Strips any
-// PeriodicFolderTrigger so a folder created by an older version of this
-// script (or by the legacy orgfolders.jobdsl.groovy seed) converges to the
-// same no-schedule behavior on the next run.
-void ensureNoPeriodicTrigger(OrganizationFolder of) {
-    def stale = of.triggers.findAll { k, v -> v instanceof PeriodicFolderTrigger }
-    if (stale) {
-        stale.each { k, v -> of.removeTrigger(v.getDescriptor()) }
-        of.save()
-    }
+// Always applied whether the folder is new or already exists. Discovery runs
+// hourly: Jenkins polls the GitHub API for each org folder every 1h (egress
+// only -- no inbound webhook is registered anywhere in this deployment) so
+// new repos surface without a human clicking "Scan Organization Now".
+// Idempotent: replaces any existing PeriodicFolderTrigger whose interval
+// isn't already exactly 1h, including ones left by an older run of this
+// script or by the legacy orgfolders.jobdsl.groovy seed (which used '1d').
+void ensureHourlyDiscoveryTrigger(OrganizationFolder of) {
+    String desired = '1h'
+    def current = of.triggers.values().find { it instanceof PeriodicFolderTrigger }
+    if (current != null && current.interval == desired) return
+    if (current != null) of.removeTrigger(current.getDescriptor())
+    of.addTrigger(new PeriodicFolderTrigger(desired))
+    of.save()
 }
 
 void upsertFolderToken(AbstractFolder folder, String id, String value) {
@@ -262,7 +267,7 @@ ORGS.each { org ->
     try {
         def of    = ensureOrgFolder(parent, org)
         ensureNoTriggerProperty(of)
-        ensureNoPeriodicTrigger(of)
+        ensureHourlyDiscoveryTrigger(of)
         def wsId  = ensureWorkspace(org)
         def token = freshJenkinsToken(wsId, org)
         upsertFolderToken(of, SCA_CRED_ID, token)

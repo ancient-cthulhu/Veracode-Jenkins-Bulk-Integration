@@ -455,13 +455,15 @@ def step_jenkins_credentials():
 # STEP 3: Configure GitHub Server (API rate-limit registration only)
 # ==============================================================================
 #
-# NOTE: manageHooks is intentionally False. This deployment is egress-only --
-# Jenkins must never receive inbound calls from GitHub, and this deployment
-# has no automatic trigger at all: no webhook, no periodic poll. Every scan
-# is ad hoc (Jenkins UI or trigger-scan.sh/.ps1). This step still registers
-# the GitHub Server entry because it is how the GitHub Branch Source plugin
-# tracks API rate-limit usage against the scm-readonly credential; it does
-# not open any inbound path and does not schedule anything on its own.
+# NOTE: manageHooks is intentionally False. Jenkins must never receive
+# inbound calls from GitHub. Discovery is still automatic though: each org
+# folder gets a 1-hour PeriodicFolderTrigger (set by veracode-onboard.groovy,
+# not here) that polls GitHub on its own schedule (egress only). Actual scans
+# beyond a newly discovered repo's first default-branch build stay ad hoc
+# (Jenkins UI or trigger-scan.sh/.ps1). This step still registers the GitHub
+# Server entry because it is how the GitHub Branch Source plugin tracks
+# API rate-limit usage against the scm-readonly credential; it does not open
+# any inbound path and does not by itself schedule anything.
 
 def step_github_server():
     print("\n=== Step 3: Configure GitHub Server (no webhook registration) ===")

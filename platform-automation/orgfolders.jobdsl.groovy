@@ -3,12 +3,11 @@
 // =============================================================================
 // LEGACY -- superseded by veracode-onboard.groovy. Kept for reference only.
 //
-// This seed predates the current ad-hoc-only design: it assumes org-level
-// GitHub webhooks are configured and sets a daily PeriodicFolderTrigger as a
-// fallback. That contradicts the "no webhook, no periodic poll" model used
-// everywhere else in this repo. Do not run this against a deployment that is
-// meant to be ad hoc only -- use veracode-onboard.groovy instead, which does
-// not set any recurring trigger.
+// This seed predates the current design: it assumes org-level GitHub
+// webhooks are configured and sets a daily PeriodicFolderTrigger as a
+// fallback. This repo now uses hourly polling too, but never a webhook --
+// use veracode-onboard.groovy instead, which sets the current 1-hour
+// interval and does not assume any webhook is registered.
 //
 // Adding an org = add its name to ORGS below. Re-running the seed is idempotent.
 //

@@ -6,7 +6,7 @@ Open-source Jenkins, many orgs. Veracode SCA, IaC/secrets, and SAST are availabl
 
 ## 1. Summary
 
-We add Veracode scanning as a separate pipeline that runs beside each team's build, triggered on demand (no webhook, no polling -- see section 4). All logic lives in one shared library; each repo gets a 2-line `Jenkinsfile` that calls it. Jenkins Organization Folders auto-discover every repo per org.
+We add Veracode scanning as a separate pipeline that runs beside each team's build, triggered on demand (no webhook; hourly discovery poll -- see section 4). All logic lives in one shared library; each repo gets a 2-line `Jenkinsfile` that calls it. Jenkins Organization Folders auto-discover every repo per org, on a 1-hour cycle.
 
 - **SCA** (dependencies) and **IaC/secrets**: any triggered scan, on the checked-out source. No build needed, so they cover every repo immediately once triggered.
 - **SAST**: only when the default branch is what gets scanned (never on PRs). Needs a build, so it is phased in per org.
@@ -25,7 +25,7 @@ We add Veracode scanning as a separate pipeline that runs beside each team's bui
 
 Connection legend:
 - **C1** Controller discovers repos/branches/PRs in each org (read), using the shared scan account.
-- **C2** SCM change detection: none automatic. No inbound webhook and no periodic poll -- Jenkins only checks GitHub when a scan is explicitly triggered (UI button or `trigger-scan.sh`/`.ps1`).
+- **C2** SCM change detection: no inbound webhook. Jenkins polls GitHub every hour to discover new repos/branches (egress only); actual scans still only run when explicitly triggered (UI button or `trigger-scan.sh`/`.ps1`), except a newly discovered repo's default branch, which gets one automatic first build.
 - **C3** Controller fetches the shared library at build time.
 - **C4-C6** Agents download the Veracode CLI, SCA agent, and Java API wrapper.
 - **C7** SCA results upload to the org's Veracode workspace.
@@ -101,7 +101,7 @@ of every org it touches. Jenkins uses it for three things:
 All of the above live in the Jenkins credential store (encrypted at rest with the controller key). No external secrets manager is used. The SCA token is folder-scoped per org; the others are root. The `veracode-onboard` script reads `veracode-api-id`/`veracode-api-key`, mints each org's Jenkins SCA token from the Veracode API, and writes the per-org `srcclr-api-token`; wherever it runs (controller or a small admin agent) needs egress to `api.veracode.com`.
 
 **SCM permissions (GitHub PAT, service account):**
-- *Scan account* (`scm-readonly`, in Jenkins): GitHub classic PAT with `repo` and `read:org`. No `admin:org_hook` scope needed and no webhook is registered: this deployment is egress-only and trigger-free by default, scans run only when explicitly requested (see "No automatic triggers" below). The account must be a member of each org it scans, and is reused to fetch the shared library.
+- *Scan account* (`scm-readonly`, in Jenkins): GitHub classic PAT with `repo` and `read:org`. No `admin:org_hook` scope needed and no webhook is registered: this deployment is egress-only, discovery runs hourly, and scans run only when explicitly requested (see "Discovery is automatic, scans are ad hoc" below). The account must be a member of each org it scans, and is reused to fetch the shared library.
 - *Push token* (rollout script only, via `GITHUB_TOKEN`, not stored in Jenkins): GitHub PAT with `repo`.
 
 > Planned hardening (revisit after go-live): replace the shared PAT with one GitHub App per org, stored folder-scoped, for per-org isolation, short-lived auto-rotated tokens, and no shared account or seat.
@@ -110,7 +110,7 @@ All of the above live in the Jenkins credential store (encrypted at rest with th
 
 **Network egress from agents:** `tools.veracode.com`, `sca-downloads.veracode.com`, `repo1.maven.org`, your Veracode region API host (`api.veracode.com` / `analysiscenter.veracode.com`, or EU/Federal), your GitHub host (`github.com` or GitHub Enterprise), and the language package mirrors the SAST build resolves. The Veracode tool downloads (CLI, SCA agent, API wrapper) can be cached or pre-installed on the agents to avoid re-fetching every build (optional, see Agents).
 
-**No automatic triggers, ad hoc only:** no webhook is registered (`manageHooks=false`) and no periodic poll is configured. Jenkins never receives an inbound call from GitHub, and never reaches out to GitHub on its own schedule either. The only automatic scan is a one-time indexing pass when an org folder is first created; after that, every scan is explicitly requested. Use the Jenkins UI ("Scan Organization Now" / "Scan Repository Now" / "Build Now") or `trigger-scan.sh` / `trigger-scan.ps1` (`platform-automation/`) to trigger an org scan, repo scan, or single-branch build on demand, run from the same location as the rollout script (controller or bastion with Jenkins reachability). See section 6 for the full trigger reference.
+**Discovery is automatic, scans are ad hoc:** no webhook is registered (`manageHooks=false`) -- Jenkins never receives an inbound call from GitHub. Every org folder does poll GitHub on its own schedule: a 1-hour `PeriodicFolderTrigger`, set by `veracode-onboard.groovy`, re-indexes each org so new repos and branches surface within the hour (egress only, no inbound path). `NoTriggerOrganizationFolderProperty` still gates what that discovery auto-builds: only a newly discovered repo's `main`/`master` gets an automatic first build; every other branch is registered as a job but never auto-queued. Beyond that first build, every scan is explicitly requested. Use the Jenkins UI ("Scan Organization Now" / "Scan Repository Now" / "Build Now") or `trigger-scan.sh` / `trigger-scan.ps1` (`platform-automation/`) to trigger an org scan, repo scan, or single-branch build on demand, run from the same location as the rollout script (controller or bastion with Jenkins reachability). See section 6 for the full trigger reference.
 
 ---
 
@@ -145,7 +145,7 @@ In a single run this script:
 1. Creates the `veracode-pipeline` repo in your platform org, pushes the shared library, and tags it `v1`
 2. Creates the `jenkins-platform` repo and pushes all platform automation
 3. Upserts `veracode-api-id`, `veracode-api-key`, and `scm-readonly` credentials in Jenkins
-4. Configures the GitHub Server entry in Jenkins (no webhook registration and no polling -- this deployment is ad hoc only, so Jenkins never receives inbound calls from GitHub and never reaches out on its own schedule either)
+4. Configures the GitHub Server entry in Jenkins (no webhook registration -- this entry is only for API rate-limit tracking; hourly discovery polling is configured separately, per org folder, in step 6 below)
 5. Registers the `veracode-pipeline` shared library on the controller
 6. Runs `veracode-onboard.groovy` via the Script Console, which creates one Organization Folder per org, mints each org's Veracode SCA workspace token, and binds it as `srcclr-api-token`
 
@@ -232,7 +232,7 @@ script for the new org. The scan PAT must be a member of the new org. Nothing el
 
 ## 6. Scan behavior (what runs, when a scan is triggered)
 
-This table describes what a scan covers once it runs, not when it runs automatically, because nothing runs automatically in this deployment (see section 4, "No automatic triggers, ad hoc only"). Every row below only happens after someone explicitly triggers a scan via the Jenkins UI or `trigger-scan.sh`/`.ps1`.
+This table describes what a scan covers once it runs. Discovery of repos and branches happens automatically every hour (section 4); scans themselves still don't run automatically except for the one-time first build of a newly discovered repo's default branch. Every other row below only happens after someone explicitly triggers a scan via the Jenkins UI or `trigger-scan.sh`/`.ps1`.
 
 | Context | SCA | IaC/secrets | SAST/Policy |
 |---------|-----|-------------|-------------|
@@ -252,7 +252,8 @@ This table describes what a scan covers once it runs, not when it runs automatic
 
 | Button | Where | What it does | Script equivalent |
 |--------|-------|-------------|--------------------|
-| **Scan Organization** | Org folder | Indexes the org, discovers repos with a Jenkinsfile, registers them as pipeline jobs, and triggers a build on the default branch of newly discovered repos | `trigger-scan.sh --org <org>` |
+| *(automatic, hourly)* | Org folder | `PeriodicFolderTrigger` re-indexes the org, discovers repos with a Jenkinsfile, registers them as pipeline jobs, and triggers a build on the default branch of newly discovered repos | n/a -- runs on its own every 1h |
+| **Scan Organization** | Org folder | Same as above, run immediately instead of waiting for the next hourly pass | `trigger-scan.sh --org <org>` |
 | **Scan Repository Now** | Repo inside org folder | Same as above for one repo | `trigger-scan.sh --org <org> --repo <repo>` |
 | **Build Now** | Branch job (e.g. `main`) | Triggers a scan on that branch immediately | `trigger-scan.sh --org <org> --repo <repo> --branch <branch>` |
 

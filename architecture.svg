@@ -13,7 +13,7 @@
 
   <rect x="0" y="0" width="1120" height="800" fill="#ffffff"/>
   <text x="560" y="40" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Veracode + Jenkins Integration Architecture</text>
-  <text x="560" y="62" text-anchor="middle" font-size="13" fill="#64748b">Open-source Jenkins. One shared library, a separate scan pipeline per repo, triggered on demand -- no webhook, no polling.</text>
+  <text x="560" y="62" text-anchor="middle" font-size="13" fill="#64748b">Open-source Jenkins. One shared library, a separate scan pipeline per repo -- hourly discovery, no webhook.</text>
 
   <!-- bulk PR arrow across the top -->
   <polyline points="180,120 180,92 952,92 952,118" fill="none" stroke="#2563eb" stroke-width="2" marker-end="url(#arrowblue)"/>
@@ -105,7 +105,7 @@
   <!-- legend -->
   <rect x="70" y="650" width="1020" height="120" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
   <text x="86" y="674" font-size="13" font-weight="700" fill="#0f172a">Connections</text>
-  <text x="86" y="698" font-size="12" fill="#334155">C1  Discovers repos via the shared scan account      C2  Ad hoc scan trigger only -- no webhook, no polling, no inbound path from GitHub      C3  Controller fetches the shared library</text>
+  <text x="86" y="698" font-size="12" fill="#334155">C1  Discovers repos via the shared scan account      C2  Hourly discovery poll, ad hoc scan trigger -- no inbound path from GitHub      C3  Controller fetches the shared library</text>
   <text x="86" y="720" font-size="12" fill="#334155">C4-C6  Agents download CLI / SCA agent / API wrapper (optional: cache or pre-install on agents to skip re-download)      C7  SCA results upload to the org workspace</text>
   <text x="86" y="742" font-size="12" fill="#334155">C8  SAST/Policy upload to the per-repo app profile      C9  Controller provisions agents      C10  One-time PR adds the Jenkinsfile</text>
   <text x="86" y="762" font-size="12" fill="#334155">C11  Secrets live in the Jenkins credential store, encrypted, folder-scoped per org (no external vault)</text>

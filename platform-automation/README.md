@@ -31,7 +31,7 @@ python3 rollout.example.py
 1. Creates the `veracode-pipeline` repo in your platform org, pushes the shared library, tags it `v1`
 2. Creates the `jenkins-platform` repo and pushes all platform automation
 3. Upserts `veracode-api-id`, `veracode-api-key`, and `scm-readonly` credentials in Jenkins
-4. Configures the GitHub Server entry in Jenkins (no webhook registration and no polling -- this deployment is ad hoc only, so Jenkins never receives inbound calls from GitHub and never reaches out on its own schedule either)
+4. Configures the GitHub Server entry in Jenkins (no webhook registration -- this entry is only for API rate-limit tracking; hourly discovery polling is set separately, per org folder, by `veracode-onboard.groovy` in step 6)
 5. Registers the `veracode-pipeline` shared library on the controller pointing at your org
 6. Runs `veracode-onboard.groovy` via the Script Console - creates one Organization Folder per org, mints each org's Veracode SCA workspace token, binds it as `srcclr-api-token`
 
@@ -116,7 +116,7 @@ This script:
 2. Finds or creates that org's Veracode SCA workspace
 3. Mints a fresh Jenkins SCA agent token from Veracode
 4. Binds it as the `srcclr-api-token` folder credential
-5. Applies a discovery trigger policy: `Scan Organization` auto-builds only `main`/`master` on first discovery - PR branches and feature branches are registered as jobs but never auto-queued
+5. Applies a discovery trigger policy: a 1-hour `PeriodicFolderTrigger` re-indexes each org folder so new repos surface automatically; on any discovery pass `Scan Organization` still auto-builds only `main`/`master` - PR branches and feature branches are registered as jobs but never auto-queued
 Re-running is safe - folders and credentials converge, the SCA token is rotated on each run.
 
 **Adding a new org later:** add a line to `ORGS` and re-run. Nothing else.
@@ -135,7 +135,7 @@ python3 bulk_add_jenkinsfile.py --orgs <YOUR-ORG> --lib-version v1 \
     --skip-archived --skip-forks --yes
 ```
 
-Review and merge the PRs. Once merged, trigger a scan (Jenkins UI or `trigger-scan.sh`/`.ps1`) to discover each repo and start scanning; nothing runs automatically.
+Review and merge the PRs. Discovery picks up the change within the hour on its own; to skip the wait, trigger a scan (Jenkins UI or `trigger-scan.sh`/`.ps1`).
 
 **To remove Jenkinsfiles later** (offboard an org):
 ```bash
@@ -149,7 +149,8 @@ python3 bulk_add_jenkinsfile.py --orgs <YOUR-ORG> --lib-version v1 --delete --ye
 
 | Button | What it does | Script equivalent |
 |--------|-------------|--------------------|
-| **Scan Organization** | Indexes the org, discovers repos with a Jenkinsfile, registers them as pipeline jobs, and triggers a build on the default branch of any newly discovered repo | `trigger-scan.sh --org <org>` |
+| *(automatic, hourly)* | `PeriodicFolderTrigger` re-indexes the org, discovers repos with a Jenkinsfile, registers them as pipeline jobs, and triggers a build on the default branch of any newly discovered repo | n/a -- runs on its own every 1h |
+| **Scan Organization** | Same as above, run immediately instead of waiting for the next hourly pass | `trigger-scan.sh --org <org>` |
 | **Scan Repository Now** | Same as above for one repo | `trigger-scan.sh --org <org> --repo <repo>` |
 | **Build Now** (on a branch job) | Triggers a scan on that specific branch immediately | `trigger-scan.sh --org <org> --repo <repo> --branch <branch>` |
 
@@ -184,7 +185,7 @@ If Docker is not available, install the language toolchain directly on the agent
 | `rollout.sh` | Bash equivalent of `rollout.py`, same convention (copy to `rollout.example.sh`) -- for teams without Python |
 | `rollout.ps1` | PowerShell equivalent of `rollout.py`, same convention (copy to `rollout.example.ps1`) -- for teams without Python |
 | `jenkins.casc.yaml` | JCasC: registers the shared library and root credentials (alternative to rollout.py steps 2-3). Requires `VERACODE_LIBRARY_REPO_URL` set as an env var before applying |
-| `veracode-onboard.groovy` | System Groovy script: creates org folders, mints + binds SCA tokens. No automatic trigger is configured -- ad hoc only |
+| `veracode-onboard.groovy` | System Groovy script: creates org folders, mints + binds SCA tokens, sets hourly discovery polling. Builds beyond the default branch's first auto-build stay ad hoc |
 | `bulk_add_jenkinsfile.py` | Opens PRs adding the 2-line Jenkinsfile to every repo in an org. `--delete` to reverse |
 | `trigger-scan.sh` | Ad hoc scan trigger (org / repo / branch) from a terminal, same effect as the Jenkins UI buttons |
 | `trigger-scan.ps1` | PowerShell equivalent of `trigger-scan.sh` |
