@@ -1,4 +1,4 @@
-# Veracode Security Pipeline for Jenkins
+# Veracode Security Pipeline for Jenkins / GitHub
 
 Automated Veracode security scanning across GitHub organizations, delivered as a Jenkins Shared Library. Drop a 2-line `Jenkinsfile` into any repo and it gets SCA, IaC/secrets, and SAST on every push, beside the team's existing build.
 
